@@ -1,0 +1,220 @@
+<div class="container">
+  <h1>Mapping de Colonnes CSV</h1>
+  
+  <!-- Section de gestion du schéma -->
+  <mat-card class="schema-config">
+    <mat-card-header>
+      <mat-card-title>Configuration du Schéma</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="schema-actions">
+        <button mat-raised-button color="accent" (click)="toggleSchemaEdit()">
+          <mat-icon>{{ editingSchema ? 'visibility_off' : 'edit' }}</mat-icon>
+          {{ editingSchema ? 'Masquer l\'édition' : 'Modifier le schéma' }}
+        </button>
+        <button mat-raised-button (click)="resetSchemaToDefault()">
+          <mat-icon>restore</mat-icon>
+          Réinitialiser le schéma
+        </button>
+      </div>
+
+      @if (editingSchema) {
+        <div class="schema-editor">
+          <h3>Ajouter un champ au schéma</h3>
+          <div class="add-field-form">
+            <mat-form-field appearance="outline" class="field-input">
+              <mat-label>Nom du nouveau champ</mat-label>
+              <input matInput [(ngModel)]="newSchemaField" (keyup.enter)="addSchemaField()" placeholder="ex: age">
+            </mat-form-field>
+            <button mat-raised-button color="primary" (click)="addSchemaField()" [disabled]="!newSchemaField.trim()">
+              <mat-icon>add</mat-icon>
+              Ajouter
+            </button>
+          </div>
+
+          <h3>Champs du schéma ({{ predefinedSchema.length }})</h3>
+          <mat-chip-set class="schema-chips">
+            @for (field of predefinedSchema; track field.name) {
+              <mat-chip-row (removed)="removeSchemaField(field.name)">
+                {{ field.name }}{{ field.required ? ' *' : '' }}
+                <button matChipRemove>
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip-row>
+            }
+          </mat-chip-set>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Section d'upload -->
+  <div class="upload-section">
+    <h2>1. Télécharger un fichier CSV</h2>
+    
+    <div class="delimiter-selection">
+      <mat-form-field appearance="outline">
+        <mat-label>Délimiteur CSV</mat-label>
+        <mat-select [(ngModel)]="csvDelimiter" [disabled]="isFileUploaded">
+          <mat-option value=",">Virgule (,)</mat-option>
+          <mat-option value=";">Point-virgule (;)</mat-option>
+          <mat-option value="	">Tabulation</mat-option>
+          <mat-option value="|">Barre verticale (|)</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="file-input-wrapper">
+      <input 
+        type="file" 
+        accept=".csv" 
+        (change)="onFileSelected($event)"
+        id="csvFile"
+        #fileInput
+        [disabled]="isLoading"
+      />
+      <label for="csvFile" class="file-label" [class.disabled]="isLoading">
+        <span class="file-icon">📁</span>
+        <span>{{ fileName || 'Choisir un fichier CSV' }}</span>
+      </label>
+    </div>
+    
+    @if (isLoading && !isFileUploaded) {
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <span>Chargement du fichier en cours...</span>
+      </div>
+    }
+    
+    @if (errorMessage) {
+      <div class="error-message">
+        ⚠️ {{ errorMessage }}
+      </div>
+    }
+  </div>
+
+  <!-- Section de mapping -->
+  @if (isFileUploaded) {
+    <div class="mapping-section">
+      <h2>2. Mapper les colonnes</h2>
+      <p class="info-text">
+        Associez chaque colonne de votre fichier CSV à un champ du schéma prédéfini.
+        Les champs marqués d'un <span class="required">*</span> sont obligatoires.
+      </p>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button 
+          mat-raised-button
+          color="primary"
+          (click)="submitMapping()"
+          [disabled]="!validateMapping() || isLoading"
+          class="action-button"
+        >
+          @if (isLoading) {
+            <ng-container>
+              <mat-spinner diameter="20" class="btn-spinner"></mat-spinner>
+              Téléchargement...
+            </ng-container>
+          } @else {
+            <ng-container>
+              <mat-icon>download</mat-icon>
+              Valider et Télécharger
+            </ng-container>
+          }
+        </button>
+        <button 
+          mat-raised-button
+          color="warn"
+          (click)="reset()" 
+          [disabled]="isLoading"
+          class="action-button"
+        >
+          <mat-icon>refresh</mat-icon>
+          Réinitialiser
+        </button>
+      </div>
+
+      @if (!validateMapping()) {
+        <div class="warning-message">
+          ⚠️ Tous les champs obligatoires (marqués d'un *) doivent être mappés avant de pouvoir télécharger
+        </div>
+      } @else {
+        <div class="success-message">
+          ✅ Mapping valide ! Vous pouvez télécharger le fichier transformé.
+        </div>
+      }
+
+      <form [formGroup]="mappingForm">
+        <div class="mapping-grid">
+          <div class="mapping-header">
+            <div>Colonne CSV</div>
+            <div>Champ du Schéma</div>
+            <div>Informations</div>
+          </div>
+
+          @for (mapping of columnMappings; track mapping.csvColumn) {
+            <div class="mapping-row">
+              <div class="csv-column">
+                <strong>{{ mapping.csvColumn }}</strong>
+              </div>
+              
+              <div class="schema-select">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Sélectionner un champ</mat-label>
+                  <mat-select 
+                    [formControlName]="mapping.csvColumn"
+                    (selectionChange)="onMappingChange(mapping.csvColumn, $event.value)"
+                    panelClass="schema-select-panel"
+                  >
+                    <mat-option [value]="null">-- Non mappé --</mat-option>
+                    <cdk-virtual-scroll-viewport itemSize="48" class="select-viewport">
+                      @for (field of predefinedSchema; track field.name) {
+                        <mat-option [value]="field.name">
+                          {{ field.name }}{{ field.required ? ' *' : '' }}
+                        </mat-option>
+                      }
+                    </cdk-virtual-scroll-viewport>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              
+              <div class="schema-info">
+                @if (mapping.schemaColumn) {
+                  @if (getSchemaField(mapping.schemaColumn); as field) {
+                    <span class="field-type">{{ field.type }}</span>
+                    @if (field.description) {
+                      <span class="field-description">{{ field.description }}</span>
+                    }
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </form>
+
+      <!-- Schéma prédéfini -->
+      <mat-card class="schema-reference">
+        <mat-card-header>
+          <mat-card-title>Schéma Prédéfini</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="schema-list">
+            @for (field of predefinedSchema; track field.name) {
+              <div class="schema-item" [class.required]="field.required">
+                <span class="field-name">
+                  {{ field.name }}{{ field.required ? ' *' : '' }}
+                </span>
+                <span class="field-type">{{ field.type }}</span>
+                @if (field.description) {
+                  <span class="field-description">{{ field.description }}</span>
+                }
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</div>

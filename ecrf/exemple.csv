@@ -1,0 +1,5 @@
+protocol_id,project_code,site,subject,date,modality,visit,anatomy,patient_status,img_reception_status
+PROT001,PRJ-2024-001,Site_A,SUBJ001,2024-01-15,MRI,Visit_1,Brain,Active,Received
+PROT001,PRJ-2024-001,Site_A,SUBJ002,2024-01-16,CT,Visit_1,Chest,Active,Received
+PROT001,PRJ-2024-001,Site_B,SUBJ003,2024-01-17,MRI,Visit_2,Brain,Active,Pending
+PROT002,PRJ-2024-002,Site_A,SUBJ004,2024-01-18,PET,Visit_1,Whole_Body,Inactive,Received
