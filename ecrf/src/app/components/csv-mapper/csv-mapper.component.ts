@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatChipsModule } from '@angular/material/chips';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CsvParserService } from '../../services/csv-parser.service';
-import { ColumnMapping, SchemaField, PREDEFINED_SCHEMA } from '../../models/column-mapping.model';
+import { ColumnMapping, SchemaField, PREDEFINED_SCHEMA, PREDEFINED_SCHEMAS } from '../../models/column-mapping.model';
 
 @Component({
   selector: 'app-csv-mapper',
@@ -46,6 +46,10 @@ export class CsvMapperComponent implements OnInit {
   editingSchema: boolean = false;
   newSchemaField: string = '';
   csvDelimiter: string = ',';
+  
+  // Gestion des études
+  availableStudies: string[] = Object.keys(PREDEFINED_SCHEMAS);
+  selectedStudy: string = this.availableStudies[0];
 
   constructor(
     private csvParser: CsvParserService,
@@ -55,10 +59,41 @@ export class CsvMapperComponent implements OnInit {
 
   ngOnInit(): void {
     this.mappingForm = this.fb.group({});
-    // Initialiser avec le schéma par défaut
-    this.predefinedSchema = [...PREDEFINED_SCHEMA];
-    // Construire le Map une seule fois au début
+    // Initialiser avec le schéma de l'étude sélectionnée
+    this.loadSchemaForStudy(this.selectedStudy);
+  }
+
+  loadSchemaForStudy(studyName: string): void {
+    this.predefinedSchema = [...PREDEFINED_SCHEMAS[studyName]];
     this.buildSchemaMap();
+    
+    // Si un fichier est déjà chargé, refaire le mapping automatique
+    if (this.isFileUploaded) {
+      this.remapColumns();
+    }
+  }
+
+  onStudyChange(studyName: string): void {
+    this.selectedStudy = studyName;
+    this.loadSchemaForStudy(studyName);
+  }
+
+  private remapColumns(): void {
+    // Réinitialiser les mappages avec le nouveau schéma
+    this.columnMappings = this.csvHeaders.map(header => {
+      const normalizedHeader = header.toLowerCase().trim();
+      const matchingSchema = this.schemaMap.get(normalizedHeader);
+      
+      return {
+        csvColumn: header,
+        schemaColumn: matchingSchema ? matchingSchema.name : null
+      };
+    });
+    
+    // Mettre à jour les contrôles de formulaire
+    this.columnMappings.forEach(mapping => {
+      this.mappingForm.get(mapping.csvColumn)?.setValue(mapping.schemaColumn, { emitEvent: false });
+    });
   }
 
   private buildSchemaMap(): void {
@@ -283,8 +318,13 @@ export class CsvMapperComponent implements OnInit {
   }
 
   resetSchemaToDefault(): void {
-    this.predefinedSchema = [...PREDEFINED_SCHEMA];
+    this.predefinedSchema = [...PREDEFINED_SCHEMAS[this.selectedStudy]];
     this.buildSchemaMap();
+    
+    // Si un fichier est chargé, refaire le mapping
+    if (this.isFileUploaded) {
+      this.remapColumns();
+    }
   }
 
   trackByColumn(index: number, mapping: ColumnMapping): string {

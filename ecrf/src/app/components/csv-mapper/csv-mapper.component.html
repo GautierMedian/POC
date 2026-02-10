@@ -7,6 +7,18 @@
       <mat-card-title>Configuration du Schéma</mat-card-title>
     </mat-card-header>
     <mat-card-content>
+      <!-- Sélection de l'étude -->
+      <div class="study-selection">
+        <mat-form-field appearance="outline" class="study-select">
+          <mat-label>Sélectionner une étude</mat-label>
+          <mat-select [(ngModel)]="selectedStudy" (selectionChange)="onStudyChange($event.value)">
+            @for (study of availableStudies; track study) {
+              <mat-option [value]="study">{{ study }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
       <div class="schema-actions">
         <button mat-raised-button color="accent" (click)="toggleSchemaEdit()">
           <mat-icon>{{ editingSchema ? 'visibility_off' : 'edit' }}</mat-icon>
