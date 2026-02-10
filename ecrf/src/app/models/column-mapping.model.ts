@@ -16,6 +16,22 @@ export interface StudySchema {
   fields: SchemaField[];
 }
 
+export interface ValidationError {
+  rowIndex: number;
+  field: string;
+  value: any;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+}
+
 export const PREDEFINED_SCHEMAS: Record<string, SchemaField[]> = {
   'ROCH-PH-063': [
     { name: 'Study ID', type: 'string', required: true, description: 'Study ID' },

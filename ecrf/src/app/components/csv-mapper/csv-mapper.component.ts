@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatChipsModule } from '@angular/material/chips';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CsvParserService } from '../../services/csv-parser.service';
-import { ColumnMapping, SchemaField, PREDEFINED_SCHEMA, PREDEFINED_SCHEMAS } from '../../models/column-mapping.model';
+import { ColumnMapping, SchemaField, PREDEFINED_SCHEMA, PREDEFINED_SCHEMAS, ValidationError, ValidationResult } from '../../models/column-mapping.model';
 
 @Component({
   selector: 'app-csv-mapper',
@@ -50,6 +50,11 @@ export class CsvMapperComponent implements OnInit {
   // Gestion des études
   availableStudies: string[] = Object.keys(PREDEFINED_SCHEMAS);
   selectedStudy: string = this.availableStudies[0];
+  
+  // Validation
+  validationResult: ValidationResult | null = null;
+  showValidationErrors: boolean = false;
+  isValidating: boolean = false;
 
   constructor(
     private csvParser: CsvParserService,
@@ -190,10 +195,155 @@ export class CsvMapperComponent implements OnInit {
     return true;
   }
 
+  validateData(): void {
+    if (!this.validateMapping()) {
+      this.errorMessage = 'Tous les champs obligatoires doivent être mappés avant la validation';
+      return;
+    }
+
+    this.isValidating = true;
+    this.errorMessage = '';
+    this.validationResult = null;
+
+    // Exécuter la validation de manière asynchrone pour ne pas bloquer l'UI
+    setTimeout(() => {
+      const errors: ValidationError[] = [];
+      const mappedFields = this.columnMappings.filter(m => m.schemaColumn !== null);
+
+      // Créer un map pour accès rapide
+      const columnToSchemaMap = new Map<string, string>();
+      mappedFields.forEach(m => {
+        if (m.schemaColumn) {
+          columnToSchemaMap.set(m.csvColumn, m.schemaColumn);
+        }
+      });
+
+      // Valider chaque ligne
+      this.csvData.forEach((row, rowIndex) => {
+        // Vérifier les champs obligatoires
+        this.predefinedSchema
+          .filter(field => field.required)
+          .forEach(field => {
+            // Trouver la colonne CSV correspondante
+            const csvColumn = Array.from(columnToSchemaMap.entries())
+              .find(([_, schema]) => schema === field.name)?.[0];
+
+            if (!csvColumn) {
+              errors.push({
+                rowIndex: rowIndex + 1,
+                field: field.name,
+                value: null,
+                message: `Champ obligatoire "${field.name}" non mappé`,
+                severity: 'error'
+              });
+              return;
+            }
+
+            const value = row[csvColumn];
+            if (value === null || value === undefined || value === '') {
+              errors.push({
+                rowIndex: rowIndex + 1,
+                field: field.name,
+                value: value,
+                message: `Champ obligatoire "${field.name}" vide`,
+                severity: 'error'
+              });
+            }
+          });
+
+        // Valider les types de données
+        mappedFields.forEach(mapping => {
+          const schemaField = this.schemaMap.get(mapping.schemaColumn!);
+          if (!schemaField) return;
+
+          const value = row[mapping.csvColumn];
+          if (value === null || value === undefined || value === '') {
+            // Champs vides déjà gérés pour les obligatoires
+            return;
+          }
+
+          // Validation des dates
+          if (schemaField.type === 'date') {
+            const dateValue = new Date(value);
+            if (isNaN(dateValue.getTime())) {
+              errors.push({
+                rowIndex: rowIndex + 1,
+                field: schemaField.name,
+                value: value,
+                message: `Format de date invalide pour "${schemaField.name}": "${value}"`,
+                severity: 'error'
+              });
+            }
+          }
+
+          // Validation des nombres (si type number est ajouté plus tard)
+          if (schemaField.type === 'number') {
+            if (isNaN(Number(value))) {
+              errors.push({
+                rowIndex: rowIndex + 1,
+                field: schemaField.name,
+                value: value,
+                message: `Valeur numérique invalide pour "${schemaField.name}": "${value}"`,
+                severity: 'error'
+              });
+            }
+          }
+        });
+      });
+
+      // Créer le résultat de validation
+      const invalidRowsSet = new Set(errors.map(e => e.rowIndex));
+      this.validationResult = {
+        isValid: errors.length === 0,
+        errors: errors,
+        totalRows: this.csvData.length,
+        validRows: this.csvData.length - invalidRowsSet.size,
+        invalidRows: invalidRowsSet.size
+      };
+
+      this.showValidationErrors = true;
+      this.isValidating = false;
+      this.cdr.detectChanges();
+    }, 100);
+  }
+
+  getErrorsForRow(rowIndex: number): ValidationError[] {
+    if (!this.validationResult) return [];
+    return this.validationResult.errors.filter(e => e.rowIndex === rowIndex);
+  }
+
+  getUniqueInvalidRows(): number[] {
+    if (!this.validationResult) return [];
+    const rows = new Set(this.validationResult.errors.map(e => e.rowIndex));
+    return Array.from(rows).sort((a, b) => a - b);
+  }
+
+  clearValidation(): void {
+    this.validationResult = null;
+    this.showValidationErrors = false;
+  }
+
   submitMapping(): void {
     if (!this.validateMapping()) {
       this.errorMessage = 'Tous les champs obligatoires doivent être mappés';
       return;
+    }
+
+    // Avertir si la validation n'a pas été effectuée
+    if (!this.validationResult) {
+      const proceed = confirm('Vous n\'avez pas validé les données. Voulez-vous continuer le téléchargement sans validation ?');
+      if (!proceed) {
+        this.errorMessage = 'Veuillez valider les données avant de télécharger';
+        return;
+      }
+    } else if (!this.validationResult.isValid) {
+      const proceed = confirm(
+        `${this.validationResult.invalidRows} ligne(s) contiennent des erreurs. ` +
+        `Voulez-vous télécharger uniquement les ${this.validationResult.validRows} ligne(s) valide(s) ?`
+      );
+      if (!proceed) {
+        return;
+      }
     }
 
     this.isLoading = true;
@@ -201,8 +351,18 @@ export class CsvMapperComponent implements OnInit {
 
     // Simuler un délai pour la génération du fichier (optionnel)
     setTimeout(() => {
+      // Déterminer quelles lignes inclure
+      let dataToProcess = this.csvData;
+      
+      if (this.validationResult && !this.validationResult.isValid) {
+        // Obtenir les indices des lignes invalides (en base 1)
+        const invalidRowIndices = new Set(this.validationResult.errors.map(e => e.rowIndex));
+        // Filtrer pour ne garder que les lignes valides (les indices csvData sont en base 0)
+        dataToProcess = this.csvData.filter((_, index) => !invalidRowIndices.has(index + 1));
+      }
+      
       // Créer le résultat du mapping
-      const mappedData = this.csvData.map(row => {
+      const mappedData = dataToProcess.map(row => {
         const mappedRow: any = {};
         
         this.columnMappings.forEach(mapping => {
@@ -216,7 +376,9 @@ export class CsvMapperComponent implements OnInit {
 
       console.log('Mapping validé:', {
         mappings: this.columnMappings,
-        mappedData: mappedData
+        mappedData: mappedData,
+        totalRows: this.csvData.length,
+        processedRows: dataToProcess.length
       });
 
       // Télécharger le fichier CSV transformé
@@ -275,6 +437,7 @@ export class CsvMapperComponent implements OnInit {
     this.isFileUploaded = false;
     this.errorMessage = '';
     this.mappingForm = this.fb.group({});
+    this.clearValidation();
     // Ne pas réinitialiser le délimiteur pour garder le choix de l'utilisateur
     // Réinitialiser l'input file
     const fileInput = document.getElementById('csvFile') as HTMLInputElement;

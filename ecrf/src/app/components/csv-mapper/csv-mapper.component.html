@@ -118,6 +118,25 @@
       <div class="actions">
         <button 
           mat-raised-button
+          color="accent"
+          (click)="validateData()"
+          [disabled]="!validateMapping() || isLoading || isValidating"
+          class="action-button"
+        >
+          @if (isValidating) {
+            <ng-container>
+              <mat-spinner diameter="20" class="btn-spinner"></mat-spinner>
+              Validation...
+            </ng-container>
+          } @else {
+            <ng-container>
+              <mat-icon>check_circle</mat-icon>
+              Valider les Données
+            </ng-container>
+          }
+        </button>
+        <button 
+          mat-raised-button
           color="primary"
           (click)="submitMapping()"
           [disabled]="!validateMapping() || isLoading"
@@ -131,7 +150,7 @@
           } @else {
             <ng-container>
               <mat-icon>download</mat-icon>
-              Valider et Télécharger
+              Télécharger
             </ng-container>
           }
         </button>
@@ -153,8 +172,77 @@
         </div>
       } @else {
         <div class="success-message">
-          ✅ Mapping valide ! Vous pouvez télécharger le fichier transformé.
+          ✅ Mapping valide ! Vous pouvez valider les données puis télécharger le fichier transformé.
         </div>
+      }
+
+      <!-- Résultats de validation -->
+      @if (validationResult && showValidationErrors) {
+        <mat-card class="validation-results" [class.has-errors]="!validationResult.isValid">
+          <mat-card-header>
+            <mat-card-title>
+              @if (validationResult.isValid) {
+                <mat-icon class="success-icon">check_circle</mat-icon>
+                Validation Réussie
+              } @else {
+                <mat-icon class="error-icon">error</mat-icon>
+                Erreurs de Validation Trouvées
+              }
+            </mat-card-title>
+            <button mat-icon-button (click)="clearValidation()" class="close-button">
+              <mat-icon>close</mat-icon>
+            </button>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="validation-summary">
+              <div class="summary-item">
+                <span class="label">Total de lignes:</span>
+                <span class="value">{{ validationResult.totalRows }}</span>
+              </div>
+              <div class="summary-item success">
+                <span class="label">Lignes valides:</span>
+                <span class="value">{{ validationResult.validRows }}</span>
+              </div>
+              @if (validationResult.invalidRows > 0) {
+                <div class="summary-item error">
+                  <span class="label">Lignes avec erreurs:</span>
+                  <span class="value">{{ validationResult.invalidRows }}</span>
+                </div>
+              }
+            </div>
+
+            @if (!validationResult.isValid) {
+              <div class="errors-section">
+                <h3>Détails des Erreurs</h3>
+                <div class="errors-by-row">
+                  @for (rowIndex of getUniqueInvalidRows(); track rowIndex) {
+                    <div class="error-row-group">
+                      <div class="row-header">
+                        <mat-icon>error_outline</mat-icon>
+                        <strong>Ligne {{ rowIndex }}</strong>
+                      </div>
+                      <div class="row-errors">
+                        @for (error of getErrorsForRow(rowIndex); track $index) {
+                          <div class="error-item" [class.warning]="error.severity === 'warning'">
+                            <div class="error-details">
+                              <span class="error-field">{{ error.field }}:</span>
+                              <span class="error-message">{{ error.message }}</span>
+                            </div>
+                            @if (error.value !== null && error.value !== undefined && error.value !== '') {
+                              <div class="error-value">
+                                Valeur: <code>{{ error.value }}</code>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
       }
 
       <form [formGroup]="mappingForm">
