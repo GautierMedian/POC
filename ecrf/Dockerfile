@@ -1,34 +1,46 @@
-# Stage 1: Build the Angular application
-FROM node:22-alpine AS builder
+# =========================================
+# Stage 1: Build the Angular Application
+# =========================================
+ARG NODE_VERSION=24.12.0-alpine
+ARG NGINX_VERSION=alpine3.22
 
+# Use a lightweight Node.js image for building (customizable via ARG)
+FROM node:${NODE_VERSION} AS builder
+
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package-related files first to leverage Docker's caching mechanism
+COPY package.json *package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Install project dependencies using npm ci (ensures a clean, reproducible install)
+RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Copy source code
+# Copy the rest of the application source code into the container
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the Angular application
+RUN npm run build 
 
-# Stage 2: Serve the application with nginx
-FROM nginx:1.27-alpine
+# =========================================
+# Stage 2: Prepare Nginx to Serve Static Files
+# =========================================
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+FROM nginxinc/nginx-unprivileged:${NGINX_VERSION} AS runner
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist/csv-mapper/browser /usr/share/nginx/html
+# Copy custom Nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Expose port 80
-EXPOSE 80
+# Copy the static build output from the build stage to Nginx's default HTML serving directory
+COPY --chown=nginx:nginx --from=builder /app/dist/*/browser /usr/share/nginx/html
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+# Use a built-in non-root user for security best practices
+USER nginx
 
-CMD ["nginx", "-g", "daemon off;"]
+# Expose port 8080 to allow HTTP traffic
+# Note: The default Nginx container now listens on port 8080 instead of 80 
+EXPOSE 8080
+
+# Start Nginx directly with custom config
+ENTRYPOINT ["nginx", "-c", "/etc/nginx/nginx.conf"]
+CMD ["-g", "daemon off;"]

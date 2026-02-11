@@ -3,6 +3,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "csv-mapper.fullname" . }}
+  namespace: {{ .Values.namespace }}
   labels:
     {{- include "csv-mapper.labels" . | nindent 4 }}
 spec:

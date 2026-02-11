@@ -1,10 +1,11 @@
 # Default values for csv-mapper
 
-replicaCount: 2
+replicaCount: 1
+namespace: integration-ctms
 
 image:
   repository: median-registry-vpc.eu-central-1.cr.aliyuncs.com/ctms/poc-ecrf
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: 'dev-latest'
 
 imagePullSecrets: 'registry-logon'
@@ -22,8 +23,8 @@ podLabels: {}
 
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 101
-  fsGroup: 101
+  runAsUser: 1000
+  fsGroup: 1000
   seccompProfile:
     type: RuntimeDefault
 
@@ -37,7 +38,7 @@ securityContext:
 service:
   type: LoadBalancer
   port: 80
-  targetPort: 80
+  targetPort: 8080
   annotations: {}
 
 ingress:

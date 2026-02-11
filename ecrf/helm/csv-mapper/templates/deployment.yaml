@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "csv-mapper.fullname" . }}
+  namespace: {{ .Values.namespace }}
   labels:
     {{- include "csv-mapper.labels" . | nindent 4 }}
 spec:
@@ -24,11 +25,11 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
       serviceAccountName: {{ include "csv-mapper.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      imagePullSecrets:
-        - name: {{ .Values.imagePullSecrets }}
       containers:
       - name: {{ .Chart.Name }}
         securityContext:
