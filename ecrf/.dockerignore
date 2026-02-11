@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Build outputs
+dist/
+.angular/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Helm
+helm/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Tests
+coverage/
+*.spec.ts
+
+# Misc
+.DS_Store
+*.log

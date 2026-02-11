@@ -1,0 +1,13 @@
+apiVersion: v2
+name: csv-mapper
+description: A Helm chart for CSV Mapper Angular application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - angular
+  - csv
+  - mapper
+maintainers:
+  - name: GautierMedian
+    email: your-email@example.com
