@@ -62,24 +62,26 @@
   
   <!-- Section d'upload -->
   <div class="upload-section">
-    <h2>1. Télécharger un fichier CSV</h2>
+    <h2>1. Télécharger un fichier CSV ou Excel</h2>
     
-    <div class="delimiter-selection">
-      <mat-form-field appearance="outline">
-        <mat-label>Délimiteur CSV</mat-label>
-        <mat-select [(ngModel)]="csvDelimiter" [disabled]="isFileUploaded">
-          <mat-option value=",">Virgule (,)</mat-option>
-          <mat-option value=";">Point-virgule (;)</mat-option>
-          <mat-option value="	">Tabulation</mat-option>
-          <mat-option value="|">Barre verticale (|)</mat-option>
-        </mat-select>
-      </mat-form-field>
-    </div>
+    @if (!isExcelFile) {
+      <div class="delimiter-selection">
+        <mat-form-field appearance="outline">
+          <mat-label>Délimiteur CSV</mat-label>
+          <mat-select [(ngModel)]="csvDelimiter" [disabled]="isFileUploaded">
+            <mat-option value=",">Virgule (,)</mat-option>
+            <mat-option value=";">Point-virgule (;)</mat-option>
+            <mat-option value="	">Tabulation</mat-option>
+            <mat-option value="|">Barre verticale (|)</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    }
 
     <div class="file-input-wrapper">
       <input 
         type="file" 
-        accept=".csv" 
+        accept=".csv,.xlsx,.xls" 
         (change)="onFileSelected($event)"
         id="csvFile"
         #fileInput
@@ -87,9 +89,22 @@
       />
       <label for="csvFile" class="file-label" [class.disabled]="isLoading">
         <span class="file-icon">📁</span>
-        <span>{{ fileName || 'Choisir un fichier CSV' }}</span>
+        <span>{{ fileName || 'Choisir un fichier CSV ou Excel' }}</span>
       </label>
     </div>
+
+    @if (isExcelFile && availableSheets.length > 0) {
+      <div class="delimiter-selection">
+        <mat-form-field appearance="outline">
+          <mat-label>Onglet Excel</mat-label>
+          <mat-select [(ngModel)]="selectedSheet" (selectionChange)="onSheetChange($event.value)">
+            @for (sheet of availableSheets; track sheet) {
+              <mat-option [value]="sheet">{{ sheet }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+    }
     
     @if (isLoading && !isFileUploaded) {
       <div class="loading-container">

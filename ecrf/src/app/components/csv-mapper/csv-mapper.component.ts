@@ -46,6 +46,10 @@ export class CsvMapperComponent implements OnInit {
   editingSchema: boolean = false;
   newSchemaField: string = '';
   csvDelimiter: string = ',';
+  availableSheets: string[] = [];
+  selectedSheet: string = '';
+  isExcelFile: boolean = false;
+  excelWorkbook: any = null;
   
   // Gestion des études
   availableStudies: string[] = Object.keys(PREDEFINED_SCHEMAS);
@@ -116,46 +120,95 @@ export class CsvMapperComponent implements OnInit {
       return;
     }
 
-    if (!file.name.endsWith('.csv')) {
-      this.errorMessage = 'Veuillez sélectionner un fichier CSV';
+    const lowerName = file.name.toLowerCase();
+    const isCsv = lowerName.endsWith('.csv');
+    const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+
+    if (!isCsv && !isExcel) {
+      this.errorMessage = 'Veuillez sélectionner un fichier CSV ou Excel';
       return;
     }
 
+    this.resetCurrentFileState(false);
     this.fileName = file.name;
     this.errorMessage = '';
     this.isLoading = true;
+    this.isExcelFile = isExcel;
 
-    this.csvParser.parseCSV(file, this.csvDelimiter)
-      .then(result => {
-        this.csvHeaders = result.headers;
-        this.csvData = result.data;
-        this.isFileUploaded = true;
-        
-        // Initialiser les mappings avec auto-détection
-        this.columnMappings = this.csvHeaders.map(header => {
-          const normalizedHeader = header.toLowerCase().trim();
-          const matchingSchema = this.schemaMap.get(normalizedHeader);
-          
-          return {
-            csvColumn: header,
-            schemaColumn: matchingSchema ? matchingSchema.name : null
-          };
+    if (isCsv) {
+      this.csvParser.parseCSV(file, this.csvDelimiter)
+        .then(result => {
+          this.applyParsedData(result);
+        })
+        .catch(error => {
+          this.errorMessage = error.message || 'Erreur lors du parsing du fichier CSV';
+          console.error('Error parsing CSV:', error);
+        })
+        .finally(() => {
+          this.isLoading = false;
+          this.cdr.detectChanges();
         });
+      return;
+    }
 
-        // Créer les contrôles de formulaire pour chaque colonne
-        this.createFormControls();
-        
-        // Forcer la détection de changements
-        this.cdr.detectChanges();
+    this.csvParser.parseExcel(file)
+      .then(result => {
+        this.excelWorkbook = result.workbook;
+        this.availableSheets = result.sheetNames;
+        this.selectedSheet = this.availableSheets[0];
+        this.loadExcelSheet(this.selectedSheet);
       })
       .catch(error => {
-        this.errorMessage = error.message || 'Erreur lors du parsing du fichier CSV';
-        console.error('Error parsing CSV:', error);
+        this.errorMessage = error.message || 'Erreur lors du parsing du fichier Excel';
+        console.error('Error parsing Excel:', error);
       })
       .finally(() => {
         this.isLoading = false;
         this.cdr.detectChanges();
       });
+  }
+
+  onSheetChange(sheetName: string): void {
+    this.selectedSheet = sheetName;
+    this.loadExcelSheet(sheetName);
+  }
+
+  private loadExcelSheet(sheetName: string): void {
+    if (!this.excelWorkbook) {
+      return;
+    }
+
+    try {
+      const result = this.csvParser.parseExcelSheet(this.excelWorkbook, sheetName);
+      this.applyParsedData(result);
+    } catch (error: any) {
+      this.errorMessage = error.message || 'Erreur lors du chargement de l\'onglet';
+      console.error('Error loading Excel sheet:', error);
+    }
+  }
+
+  private applyParsedData(result: { headers: string[]; data: any[] }): void {
+    this.csvHeaders = result.headers;
+    this.csvData = result.data;
+    this.isFileUploaded = true;
+
+    // Initialiser les mappings avec auto-détection
+    this.columnMappings = this.csvHeaders.map(header => {
+      const normalizedHeader = header.toLowerCase().trim();
+      const matchingSchema = this.schemaMap.get(normalizedHeader);
+
+      return {
+        csvColumn: header,
+        schemaColumn: matchingSchema ? matchingSchema.name : null
+      };
+    });
+
+    // Créer les contrôles de formulaire pour chaque colonne
+    this.createFormControls();
+    this.clearValidation();
+
+    // Forcer la détection de changements
+    this.cdr.detectChanges();
   }
 
   createFormControls(): void {
@@ -430,6 +483,11 @@ export class CsvMapperComponent implements OnInit {
   }
 
   reset(): void {
+    this.resetCurrentFileState(true);
+    // Ne pas réinitialiser le délimiteur pour garder le choix de l'utilisateur
+  }
+
+  private resetCurrentFileState(clearFileInput: boolean): void {
     this.csvHeaders = [];
     this.csvData = [];
     this.columnMappings = [];
@@ -438,11 +496,16 @@ export class CsvMapperComponent implements OnInit {
     this.errorMessage = '';
     this.mappingForm = this.fb.group({});
     this.clearValidation();
-    // Ne pas réinitialiser le délimiteur pour garder le choix de l'utilisateur
-    // Réinitialiser l'input file
-    const fileInput = document.getElementById('csvFile') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
+    this.availableSheets = [];
+    this.selectedSheet = '';
+    this.isExcelFile = false;
+    this.excelWorkbook = null;
+
+    if (clearFileInput) {
+      const fileInput = document.getElementById('csvFile') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
     }
   }
 
