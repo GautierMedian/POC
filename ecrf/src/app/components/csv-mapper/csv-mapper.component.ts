@@ -420,7 +420,9 @@ export class CsvMapperComponent implements OnInit {
         
         this.columnMappings.forEach(mapping => {
           if (mapping.schemaColumn) {
-            mappedRow[mapping.schemaColumn] = row[mapping.csvColumn];
+            const schemaField = this.schemaMap.get(mapping.schemaColumn);
+            const outputKey = schemaField?.label || mapping.schemaColumn;
+            mappedRow[outputKey] = row[mapping.csvColumn];
           }
         });
         
@@ -449,7 +451,10 @@ export class CsvMapperComponent implements OnInit {
     // Récupérer les en-têtes des colonnes mappées
     const headers = this.columnMappings
       .filter(mapping => mapping.schemaColumn !== null)
-      .map(mapping => mapping.schemaColumn as string);
+      .map(mapping => {
+        const schemaField = this.schemaMap.get(mapping.schemaColumn as string);
+        return schemaField?.label || (mapping.schemaColumn as string);
+      });
 
     // Créer le contenu CSV
     let csvContent = headers.join(',') + '\n';
@@ -513,6 +518,7 @@ export class CsvMapperComponent implements OnInit {
     if (this.newSchemaField.trim()) {
       const newField = {
         name: this.newSchemaField.trim(),
+        label: 'PrivateTag',
         type: 'string',
         required: false,
         description: 'Champ personnalisé'

@@ -286,7 +286,7 @@
                     <cdk-virtual-scroll-viewport itemSize="48" class="select-viewport">
                       @for (field of predefinedSchema; track field.name) {
                         <mat-option [value]="field.name">
-                          {{ field.name }}{{ field.required ? ' *' : '' }}
+                          {{ field.name }}{{ field.required ? ' *' : '' }} ({{ field.label }})
                         </mat-option>
                       }
                     </cdk-virtual-scroll-viewport>
