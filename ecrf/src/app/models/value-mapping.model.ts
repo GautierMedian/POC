@@ -1,4 +1,4 @@
-export type ValueMappingColumn = 'Modality' | 'VisitName';
+export type ValueMappingColumn = 'PRIMAG.PRTRT_IMAG' | 'PRIMAG.VISIT';
 
 export interface ValueMappingItem {
   originalValue: string;
@@ -9,7 +9,7 @@ export type ValueMappingDict = Record<string, Record<ValueMappingColumn, ValueMa
 
 export const VALUE_MAPPINGS: ValueMappingDict = {
   'KELN-PH-002': {
-    'Modality': [
+    'PRIMAG.PRTRT_IMAG': [
       { originalValue: 'PET/CT扫描', correctedValue: 'PT' },
       { originalValue: '其他(DX)', correctedValue: 'X-Ray' },
       { originalValue: '增强CT', correctedValue: 'CT with contrast' },
@@ -20,7 +20,7 @@ export const VALUE_MAPPINGS: ValueMappingDict = {
       { originalValue: '平扫MRI', correctedValue: 'MR without contrast' },
       { originalValue: '骨扫描成像', correctedValue: 'NM' }
     ],
-    'VisitName': [
+    'PRIMAG.VISIT': [
       { originalValue: '疗效评估(RECIST1.1)-计划外(unscheduled 1)', correctedValue: 'Unscheduled 1' },
       { originalValue: '疗效评估(RECIST1.1)-计划外(unscheduled 2)', correctedValue: 'Unscheduled 2' },
       { originalValue: '疗效评估(RECIST1.1)-计划外(unscheduled 3)', correctedValue: 'Unscheduled 3' },

@@ -152,6 +152,15 @@
         </button>
         <button 
           mat-raised-button
+          (click)="generateMappedDataPreview()"
+          [disabled]="!validateMapping() || isLoading"
+          class="action-button"
+        >
+          <mat-icon>visibility</mat-icon>
+          Aperçu des Données
+        </button>
+        <button 
+          mat-raised-button
           color="primary"
           (click)="submitMapping()"
           [disabled]="!validateMapping() || isLoading"
@@ -260,6 +269,37 @@
         </mat-card>
       }
 
+            <!-- Aperçu des 20 premières lignes mappées -->
+      @if (mappedDataPreview.length > 0) {
+        <mat-card class="preview-card">
+          <mat-card-header>
+            <mat-card-title>Aperçu des 20 premières lignes mappées</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="preview-table-wrapper">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    @for (header of Object.keys(mappedDataPreview[0] || {}); track header) {
+                      <th>{{ header }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of mappedDataPreview; track $index) {
+                    <tr>
+                      @for (header of Object.keys(mappedDataPreview[0] || {}); track header) {
+                        <td>{{ row[header] }}</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+
       <form [formGroup]="mappingForm">
         <div class="mapping-grid">
           <div class="mapping-header">
@@ -273,7 +313,6 @@
               <div class="csv-column">
                 <strong>{{ mapping.csvColumn }}</strong>
               </div>
-              
               <div class="schema-select">
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Sélectionner un champ</mat-label>
@@ -293,7 +332,6 @@
                   </mat-select>
                 </mat-form-field>
               </div>
-              
               <div class="schema-info">
                 @if (mapping.schemaColumn) {
                   @if (getSchemaField(mapping.schemaColumn); as field) {

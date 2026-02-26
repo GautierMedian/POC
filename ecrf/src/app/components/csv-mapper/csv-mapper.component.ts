@@ -11,7 +11,16 @@ import { MatInputModule } from '@angular/material/input';
 import { MatChipsModule } from '@angular/material/chips';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CsvParserService } from '../../services/csv-parser.service';
-import { ColumnMapping, SchemaField, PREDEFINED_SCHEMA, PREDEFINED_SCHEMAS, ValidationError, ValidationResult } from '../../models/column-mapping.model';
+
+import {
+  ColumnMapping,
+  SchemaField,
+  PREDEFINED_SCHEMAS,
+  ValidationError,
+  ValidationResult
+} from '../../models/column-mapping.model';
+
+import { VALUE_MAPPINGS, ValueMappingDict, ValueMappingColumn, ValueMappingItem } from '../../models/value-mapping.model';
 
 @Component({
   selector: 'app-csv-mapper',
@@ -59,6 +68,12 @@ export class CsvMapperComponent implements OnInit {
   validationResult: ValidationResult | null = null;
   showValidationErrors: boolean = false;
   isValidating: boolean = false;
+
+  // Aperçu des données mappées
+  mappedDataPreview: any[] = [];
+  
+  // Exposer Object pour le template
+  Object = Object;
 
   constructor(
     private csvParser: CsvParserService,
@@ -354,6 +369,9 @@ export class CsvMapperComponent implements OnInit {
         invalidRows: invalidRowsSet.size
       };
 
+      // Générer l'aperçu des 20 premières lignes mappées
+      this.generateMappedDataPreview();
+
       this.showValidationErrors = true;
       this.isValidating = false;
       this.cdr.detectChanges();
@@ -374,6 +392,54 @@ export class CsvMapperComponent implements OnInit {
   clearValidation(): void {
     this.validationResult = null;
     this.showValidationErrors = false;
+    this.mappedDataPreview = [];
+  }
+
+  generateMappedDataPreview(): void {
+    // Appliquer le mapping des valeurs si défini pour le projet et la colonne
+    const projectMappings = VALUE_MAPPINGS[this.selectedStudy];
+    
+    // Prendre les 20 premières lignes
+    const previewData = this.csvData.slice(0, 20);
+    
+    console.log('Project mappings:', projectMappings);
+    console.log('Selected study:', this.selectedStudy);
+    
+    this.mappedDataPreview = previewData.map(row => {
+      const mappedRow: any = {};
+      this.columnMappings.forEach(mapping => {
+        if (mapping.schemaColumn) {
+          const schemaField = this.schemaMap.get(mapping.schemaColumn);
+          const outputKey = schemaField?.label || mapping.schemaColumn;
+          let value = row[mapping.csvColumn];
+          const originalValue = value;
+
+          // Appliquer le mapping de valeur si possible
+          if (projectMappings) {
+            const columnMappings = projectMappings[mapping.schemaColumn as ValueMappingColumn];
+            if (columnMappings) {
+              // Normaliser la valeur pour la comparaison (trim)
+              const normalizedValue = value?.toString().trim();
+              const found = columnMappings.find(m => m.originalValue.trim() === normalizedValue);
+              if (found) {
+                console.log(`Mapping found: ${originalValue} -> ${found.correctedValue} (column: ${mapping.schemaColumn})`);
+                value = found.correctedValue;
+              } else {
+                console.log(`No mapping found for value: "${normalizedValue}" in column: ${mapping.schemaColumn}`);
+              }
+            } else {
+              console.log(`No column mappings for: ${mapping.schemaColumn}`);
+            }
+          }
+
+          mappedRow[outputKey] = value;
+        }
+      });
+      return mappedRow;
+    });
+    
+    // Forcer la détection de changements pour mettre à jour la vue
+    this.cdr.detectChanges();
   }
 
   submitMapping(): void {
@@ -414,20 +480,36 @@ export class CsvMapperComponent implements OnInit {
         dataToProcess = this.csvData.filter((_, index) => !invalidRowIndices.has(index + 1));
       }
       
-      // Créer le résultat du mapping
+
+      // Appliquer le mapping des valeurs si défini pour le projet et la colonne
+      const projectMappings: ValueMappingDict[string] | undefined = VALUE_MAPPINGS[this.selectedStudy];
+
+
       const mappedData = dataToProcess.map(row => {
         const mappedRow: any = {};
-        
         this.columnMappings.forEach(mapping => {
+          console.log('Mapping:', mapping);
           if (mapping.schemaColumn) {
             const schemaField = this.schemaMap.get(mapping.schemaColumn);
             const outputKey = schemaField?.label || mapping.schemaColumn;
-            mappedRow[outputKey] = row[mapping.csvColumn];
+            let value = row[mapping.csvColumn];
+            if (projectMappings) {
+              const columnMappings = projectMappings[mapping.schemaColumn as ValueMappingColumn];
+              if (columnMappings) {
+                const found = columnMappings.find(m => m.originalValue === value);
+                if (found) {
+                  value = found.correctedValue;
+                }
+              }
+            }
+            mappedRow[outputKey] = value;
           }
         });
-        
         return mappedRow;
       });
+
+      // Aperçu des 20 premières lignes mappées
+      this.mappedDataPreview = mappedData.slice(0, 20);
 
       console.log('Mapping validé:', {
         mappings: this.columnMappings,
@@ -501,6 +583,7 @@ export class CsvMapperComponent implements OnInit {
     this.errorMessage = '';
     this.mappingForm = this.fb.group({});
     this.clearValidation();
+    this.mappedDataPreview = [];
     this.availableSheets = [];
     this.selectedSheet = '';
     this.isExcelFile = false;
