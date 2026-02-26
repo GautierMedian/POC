@@ -50,6 +50,17 @@ export const PREDEFINED_SCHEMAS: Record<string, SchemaField[]> = {
     { name: 'Last Transfer Date', label: 'InstanceCreationDate', type: 'date', required: false, description: 'Last Transfer Date' },
     { name: 'Run Date', label: 'AcquisitionDate', type: 'date', required: false, description: 'Run Date' }
   ],
+  'KELN-PH-002': [
+    { name: 'STUDYID', label: 'ClinicalTrialProtocolID', type: 'string', required: true, description: 'ID de l\'étude' },
+    { name: 'SITEID', label: 'ClinicalTrialSiteID', type: 'string', required: true, description: 'ID du site' },
+    { name: 'SUBJID', label: 'ClinicalTrialSubjectID', type: 'string', required: true, description: 'ID du sujet' },
+    { name: 'DM.BRTHDAT', label: 'BirthDate', type: 'date', required: false, description: 'Date de naissance' },
+    { name: 'IE.IEYN', label: 'IEYesNo', type: 'string', required: false, description: 'IE Oui/Non' },
+    { name: 'DSRAND.DSYN', label: 'RandomizationYesNo', type: 'string', required: false, description: 'Randomisation Oui/Non' },
+    { name: 'PRIMAG.VISIT', label: 'Visit', type: 'string', required: false, description: 'Visite' },
+    { name: 'PRIMAG.PRSTDAT', label: 'ProcedureStartDate', type: 'date', required: false, description: 'Date de début de procédure' },
+    { name: 'PRIMAG.PRTRT_IMAG', label: 'ImagingTreatment', type: 'string', required: false, description: 'Traitement d\'imagerie' }
+  ],
   'SIGN-PH-002': [
     { name: 'STUDYID', label: 'ClinicalTrialProtocolID', type: 'string', required: true, description: 'Study ID' },
     { name: 'SITENUM', label: 'ClinicalTrialSiteID', type: 'string', required: true, description: 'Site Number' },
